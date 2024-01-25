@@ -328,58 +328,58 @@ bool qf_remove(struct quotient_filter *qf, uint64_t hash)
 		return false;
 	}
 
-	uint64_t fq = hash_to_quotient(qf, hash);
-	uint64_t fr = hash_to_remainder(qf, hash);
-	uint64_t T_fq = get_elem(qf, fq);
+	uint64_t quotient = hash_to_quotient(qf, hash);
+	uint64_t remainder = hash_to_remainder(qf, hash);
+	uint64_t tmp_quotient = get_elem(qf, quotient);
 
-	if (!is_occupied(T_fq) || !qf->qf_entries) {
+	if (!is_occupied(tmp_quotient) || !qf->qf_entries) {
 		return true;
 	}
 
-	uint64_t start = find_run_index(qf, fq);
+	uint64_t start = find_run_index(qf, quotient);
 	uint64_t s = start;
-	uint64_t rem;
+	uint64_t cur_remainder;
 
 	/* Find the offending table index (or give up). */
 	do {
-		rem = get_remainder(get_elem(qf, s));
-		if (rem == fr) {
+		cur_remainder = get_remainder(get_elem(qf, s));
+		if (cur_remainder == remainder) {
 			break;
-		} else if (rem > fr) {
+		} else if (cur_remainder > remainder) {
 			return true;
 		}
 		s = incr(qf, s);
 	} while (is_continuation(get_elem(qf, s)));
-	if (rem != fr) {
+	if (cur_remainder != remainder) {
 		return true;
 	}
 
-	uint64_t kill = (s == fq) ? T_fq : get_elem(qf, s);
+	uint64_t kill = (s == quotient) ? tmp_quotient : get_elem(qf, s);
 	bool replace_run_start = is_run_start(kill);
 
 	/* If we're deleting the last entry in a run, clear `is_occupied'. */
 	if (is_run_start(kill)) {
-		uint64_t next = get_elem(qf, incr(qf, s));
-		if (!is_continuation(next)) {
-			T_fq = clr_occupied(T_fq);
-			set_elem(qf, fq, T_fq);
+		uint64_t next_slot = get_elem(qf, incr(qf, s));
+		if (!is_continuation(next_slot)) {
+			tmp_quotient = clr_occupied(tmp_quotient);
+			set_elem(qf, quotient, tmp_quotient);
 		}
 	}
 
-	delete_entry(qf, s, fq);
+	delete_entry(qf, s, quotient);
 
 	if (replace_run_start) {
-		uint64_t next = get_elem(qf, s);
-		uint64_t updated_next = next;
-		if (is_continuation(next)) {
+		uint64_t next_slot = get_elem(qf, s);
+		uint64_t updated_next = next_slot;
+		if (is_continuation(next_slot)) {
 			/* The new start-of-run is no longer a continuation. */
-			updated_next = clr_continuation(next);
+			updated_next = clr_continuation(next_slot);
 		}
-		if (s == fq && is_run_start(updated_next)) {
+		if (s == quotient && is_run_start(updated_next)) {
 			/* The new start-of-run is in the canonical slot. */
 			updated_next = clr_shifted(updated_next);
 		}
-		if (updated_next != next) {
+		if (updated_next != next_slot) {
 			set_elem(qf, s, updated_next);
 		}
 	}
